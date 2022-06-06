@@ -146,6 +146,7 @@ async def perform_discovery(session: aiohttp.ClientSession,
   logging.debug('Found devices: %r', devices)
   for device in devices:
     device_data = device['device']
+    device_data['product_name'] = device_data['lan_ip']
     if device_filter and device_filter != device_data['product_name']:
       continue
     dsn = device_data['dsn']
