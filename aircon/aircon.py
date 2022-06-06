@@ -1,12 +1,11 @@
 from copy import deepcopy
-from dataclasses import dataclass, field, fields
+from dataclasses import fields
 import enum
 import logging
 import random
 import re
 import string
 import threading
-import time
 from typing import Any, Callable, Dict, List
 import queue
 from Crypto.Cipher import AES
@@ -16,15 +15,7 @@ from .config import Config, Encryption
 from .error import Error
 from .properties import (AcProperties, AirFlow, AirFlowState, Economy, FanSpeed, FastColdHeat,
                          FglProperties, FglBProperties, HumidifierProperties, Properties, Power,
-                         AcWorkMode, Quiet, TemperatureUnit, SleepMode)
-
-
-@dataclass(order=True)
-class Command:
-  priority: int
-  timestamp: int  # Aligns equal priority commands in FIFO.
-  command: Dict = field(compare=False)
-  updater: Callable = field(compare=False)
+                         AcWorkMode, Quiet, TemperatureUnit)
 
 
 class Device(object):
@@ -47,14 +38,14 @@ class Device(object):
     self._properties = properties
     self._properties_lock = threading.RLock()
     self._queue_listener = notifier
-    self._available = None
+    self._available = False
     self.topics = {}
     self.work_modes = []
     self.fan_modes = []
 
     self._next_command_id = 0
 
-    self.commands_queue = queue.PriorityQueue()
+    self.commands_queue = queue.Queue()
     self._commands_seq_no = 0
     self._commands_seq_no_lock = threading.Lock()
 
@@ -80,14 +71,12 @@ class Device(object):
 
   @property
   def available(self) -> bool:
-    # Return False if was not set yet.
-    return self._available or False
+    return self._available
 
   @available.setter
   def available(self, value: bool):
-    if self._available != value:
-      self._available = value
-      self._notify_listeners('available', 'online' if value else 'offline', retain=True)
+    self._available = value
+    self._notify_listeners('available', 'online' if value else 'offline')
 
   def add_property_change_listener(self, listener: Callable[[str, Any], None]):
     self._property_change_listeners.append(listener)
@@ -95,9 +84,9 @@ class Device(object):
   def remove_property_change_listener(self, listener: Callable[[str, Any], None]):
     self._property_change_listeners.remove(listener)
 
-  def _notify_listeners(self, prop_name: str, value, retain: bool = False):
+  def _notify_listeners(self, prop_name: str, value):
     for listener in self._property_change_listeners:
-      listener(self.mac_address, prop_name, value, retain)
+      listener(self.mac_address, prop_name, value)
 
   def get_all_properties(self) -> Properties:
     with self._properties_lock:
@@ -113,14 +102,8 @@ class Device(object):
 
   def update_property(self, name: str, value, notify_value=None) -> None:
     """Update the stored properties, if changed."""
-    # Update value precision for value sent from the A/C
-    precision = self._properties.get_precision(name)
-    if precision != 1:
-      value = round(value * precision)
-
     if notify_value is None:
       notify_value = value
-
     with self._properties_lock:
       old_value = getattr(self._properties, name)
       if value != old_value:
@@ -165,26 +148,19 @@ class Device(object):
       data_value = data_type(value)
 
     # If device has set t_control_value it is being controlled by this field.
-    if name != 't_control_value' and self.get_property('t_control_value') and name != 't_sleep':
+    if name != 't_control_value' and self.get_property('t_control_value'):
       self._convert_to_control_value(name, data_value)
       return
 
-    typed_value = data_value
     if issubclass(data_type, enum.Enum):
       data_value = data_value.value
-      typed_value = data_type[value]
-
-    # Update value precision for value to be sent to the A/C
-    precision = self._properties.get_precision(name)
-    if precision != 1:
-      data_value = round(data_value / precision)
 
     command = self._build_command(name, data_value)
     # There are (usually) no acks on commands, so also queue an update to the
     # property, to be run once the command is sent.
+    typed_value = data_type[value] if issubclass(data_type, enum.Enum) else data_value
     property_updater = lambda: self.update_property(name, typed_value)
-    # Add as a high priority command.
-    self.commands_queue.put_nowait(Command(10, time.time_ns(), command, property_updater))
+    self.commands_queue.put_nowait((command, property_updater))
 
     self._queue_listener()
 
@@ -218,8 +194,7 @@ class Device(object):
           }]
       }
       self._next_command_id += 1
-      # Add as a lower-priority command.
-      self.commands_queue.put_nowait(Command(100, time.time_ns(), command, None))
+      self.commands_queue.put_nowait((command, None))
     self._queue_listener()
 
   def update_key(self, key: dict) -> dict:
@@ -314,12 +289,6 @@ class AcDevice(Device):
       return control_value.get_temp(control)
     else:
       return self.get_property('t_temp')
-
-  def set_sleep(self, setting: SleepMode) -> None:
-    self.queue_command('t_control_value', setting)
-
-  def get_sleep(self) -> SleepMode:
-    self.get_property('t_sleep')
 
   def set_work_mode(self, setting: AcWorkMode) -> None:
     control = self.get_property('t_control_value')

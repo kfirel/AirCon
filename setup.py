@@ -19,12 +19,12 @@ setuptools.setup(
     license='GPL 3.0',
     packages=setuptools.find_packages(),
     install_requires=[
-        'aiohttp==3.7.4', 'dataclasses_json', 'pycryptodome', 'paho-mqtt==1.6.1', 'tenacity',
+        'aiohttp==3.6.2', 'dataclasses_json', 'pycryptodome', 'paho-mqtt==1.5.0', 'tenacity',
         'get-mac', 'retry'
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Topic :: Home Automation',
     ],

@@ -1,6 +1,6 @@
 {
   "name": "HiSense Air Conditioners",
-  "version": "0.3.10",
+  "version": "0.3.6",
   "slug": "hisense_ac",
   "description": "Interface for controlling Air Conditioners, e.g. with HiSense modules.",
   "url": "https://github.com/deiger/AirCon",
@@ -17,8 +17,15 @@
     "OPTIONS_FILE": "/data/options.json"
   },
   "options": {
+    "app": [
+      {
+        "username": null,
+        "password": null,
+        "code": null
+      }
+    ],
     "log_level": "INFO",
-    "mqtt_host": "core-mosquitto",
+    "mqtt_host": "localhost",
     "mqtt_user": null,
     "mqtt_pass": null,
     "port": null

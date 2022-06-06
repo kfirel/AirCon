@@ -7,7 +7,7 @@ import json
 import logging
 import socket
 import sys
-from tenacity import retry, retry_if_exception_type, wait_exponential, stop_after_attempt
+from tenacity import retry, retry_if_exception_type, wait_incrementing
 import time
 import threading
 
@@ -24,12 +24,6 @@ class _NotifyConfiguration:
   device: Device
   headers: dict
   last_timestamp: int
-
-
-def _run_after_failure(retry_state):
-  config = retry_state.kwargs['config']
-  config.device.available = False
-  return 0
 
 
 class Notifier:
@@ -79,9 +73,22 @@ class Notifier:
     self._running = True
     async with self._condition:
       while self._running:
-        queue_sizes = await asyncio.gather(*(self._perform_request(session=session, config=config)
-                                             for config in self._configurations))
-        if max(queue_sizes) <= 1:
+        queues_empty = True
+        for config in self._configurations:
+          try:
+            now = time.time()
+            queue_size = config.device.commands_queue.qsize()
+            if queue_size > 1:
+              queues_empty = False
+            if now - config.last_timestamp >= self._KEEP_ALIVE_INTERVAL or queue_size > 0:
+              await self._perform_request(session, config)
+              config.last_timestamp = now
+          except:
+            logging.exception('[KeepAlive] Failed to send local_reg keep alive to the AC.')
+            config.device.available = False
+          else:
+            config.device.available = True
+        if queues_empty:
           logging.debug('[KeepAlive] Waiting for notification or timeout')
           try:
             await asyncio.wait_for(self._condition.wait(), timeout=self._KEEP_ALIVE_INTERVAL)
@@ -96,31 +103,22 @@ class Notifier:
     await self._notify()
 
   @retry(retry=retry_if_exception_type(ConnectionError),
-         retry_error_callback=_run_after_failure,
-         wait=wait_exponential(exp_base=1.6, max=10),
-         stop=stop_after_attempt(6))
+         wait=wait_incrementing(start=0.5, increment=1.5, max=10))
   async def _perform_request(self, session: aiohttp.ClientSession,
-                             config: _NotifyConfiguration) -> int:
-    now = time.time()
-    queue_size = config.device.commands_queue.qsize()
-    if (queue_size == 0 or
-        not config.device.available) and now - config.last_timestamp < self._KEEP_ALIVE_INTERVAL:
-      return 0
+                             config: _NotifyConfiguration) -> None:
     method = 'PUT' if config.device.available else 'POST'
     self._json['local_reg']['notify'] = int(config.device.commands_queue.qsize() > 0)
-    url = f'http://{config.device.ip_address}/local_reg.json'
-    logging.debug(f'[KeepAlive] Sending {method} {url} {json.dumps(self._json)}')
+    url = 'http://{}/local_reg.json'.format(config.device.ip_address)
     try:
+      logging.debug('[KeepAlive] Sending {} {} {}'.format(method, url, json.dumps(self._json)))
       async with session.request(method, url, json=self._json, headers=config.headers) as resp:
         if resp.status != HTTPStatus.ACCEPTED.value:
           resp_data = await resp.text()
-          logging.error(f'[KeepAlive] Sending local_reg failed: {resp.status}, {resp_data}')
-          raise ConnectionError(f'Sending local_reg failed: {resp.status}, {resp_data}')
-    except (aiohttp.client_exceptions.ClientConnectorError,
-            aiohttp.client_exceptions.ClientConnectionError) as e:
-      logging.error(f'Failed to connect to {config.device.ip_address}, maybe it is offline?')
-      raise ConnectionError(
-          f'Failed to connect to {config.device.ip_address}, maybe it is offline?')
-    config.last_timestamp = now
-    config.device.available = True
-    return queue_size
+          logging.error('[KeepAlive] Sending local_reg failed: {}, {}'.format(
+              resp.status, resp_data))
+          raise ConnectionError('Sending local_reg failed: {}, {}'.format(resp.status, resp_data))
+    except:
+      config.device.available = False
+      raise
+    else:
+      config.device.available = True
