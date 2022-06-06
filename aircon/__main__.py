@@ -259,6 +259,7 @@ def _escape_name(name: str):
 
 
 async def discovery(parsed_args):
+  print("kfir repo!!!!")
   async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(connect=5.0)) as session:
     try:
       all_configs = await perform_discovery(session, parsed_args.app, parsed_args.user,
