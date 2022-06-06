@@ -19,7 +19,7 @@ preferences {
 }
 
 metadata {
-  definition(name: "Hisense Air Conditioner", namespace: "deiger", author: "Dror Eiger", mnmn: "SmartThings", ocfDeviceType: "oic.d.airconditioner", vid: "SmartThings-smartthings-Hisense_Air_Conditioner") {
+  definition(name: "Hisense Air Conditioner", namespace: "kfirel", author: "Dror Eiger", mnmn: "SmartThings", ocfDeviceType: "oic.d.airconditioner", vid: "SmartThings-smartthings-Hisense_Air_Conditioner") {
     capability "Air Conditioner Mode"
     capability "Fan Speed"
     capability "Filter Status"
