@@ -14,8 +14,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/kfirel/AirCon',
-    author='Dror Eiger',
-    author_email='droreiger@gmail.com',
+    author='kfirel',
+    author_email='kfirel@gmail.com',
     license='GPL 3.0',
     packages=setuptools.find_packages(),
     install_requires=[
