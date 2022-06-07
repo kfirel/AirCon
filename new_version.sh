@@ -22,5 +22,5 @@ git commit -a -m $NEW_VERSION
 git tag -d $NEW_VERSION
 git tag -a $NEW_VERSION -m "$NEW_VERSION_MSG"
 git push
-docker buildx build --platform linux/arm/v7,linux/arm64,linux/amd64,linux/386 -t kfirel/aircon:$NEW_VERSION --push .
+docker buildx build --platform linux/arm/v7,linux/arm64,linux/amd64,linux/386 -t deiger/aircon:$NEW_VERSION --push .
 git push --tags
