@@ -1,6 +1,6 @@
 {
   "name": "HiSense Air Conditioners",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "slug": "hisense_ac",
   "description": "Interface for controlling Air Conditioners, e.g. with HiSense modules.",
   "url": "https://github.com/kfirel/AirCon",
@@ -17,11 +17,17 @@
     "OPTIONS_FILE": "/data/options.json"
   },
   "options": {
-    "log_level": "INFO",
+    "log_level": "DEBUG",
     "mqtt_host": "core-mosquitto",
-    "mqtt_user": null,
-    "mqtt_pass": null,
-    "port": null
+    "mqtt_user": "kfirel",
+    "mqtt_pass": "?",
+    "port": 8888,
+    "app": [
+      {
+        "username": "kfirel@gmail.com",
+        "password": "?",
+        "code": "tornado-us"
+      }
   },
   "schema": {
     "app": [
