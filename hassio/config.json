@@ -5,7 +5,7 @@
   "description": "Interface for controlling Air Conditioners, e.g. with HiSense modules.",
   "url": "https://github.com/kfirel/AirCon",
   "image": "kfirelg/hvac",
-  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
+  "arch": [ "arm64"],
   "startup": "application",
   "boot": "auto",
   "host_network": true,
