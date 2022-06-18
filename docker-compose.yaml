@@ -10,7 +10,7 @@ services:
   hisense_ac:
     depends_on:
       - copy_config
-    image: kfirelg/hvac:0.3.14
+    image: kfirelg/hvac:0.3.16
     container_name: hisense_ac
     healthcheck:
       disable: true
